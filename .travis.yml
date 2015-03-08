@@ -5,5 +5,5 @@ go:
 
 install:
   - go get github.com/bmizerany/pat
-	- github.com/microcosm-cc/bluemonday
-	- github.com/shurcooL/go/github_flavored_markdown
+  - github.com/microcosm-cc/bluemonday
+  - github.com/shurcooL/go/github_flavored_markdown
