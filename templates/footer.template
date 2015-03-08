@@ -1,2 +1,4 @@
 <hr>
-<p>This is the footer!</p>
+<footer>
+  Environment developed by <a href="github.com/mooxmirror">@mooxmirror</a>
+</footer>

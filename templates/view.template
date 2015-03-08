@@ -1,4 +1,8 @@
-<h1>{Article.Title}</h1>
-<p><small>Last modified at {Article.ModifyDate}</small></p>
-<hr>
-{Article.Content}
+<div class="panel panel-default">
+  <div class="panel-heading">
+    <h3 class="panel-title">Last modified at {Article.ModifyDate} | <a href="/{Article.Title}/edit">Edit this page</a></h>
+  </div>
+  <div class="panel-body">
+    {Article.Content}
+  </div>
+</div>

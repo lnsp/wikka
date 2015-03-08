@@ -2,8 +2,10 @@
 <html lang="en">
 {head.template}
 <body>
+<div class="container">
 {header.template}
 {content}
 {footer.template}
+</div>
 </body>
 </html>

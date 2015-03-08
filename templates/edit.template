@@ -1,1 +1,4 @@
-Here comes the edit template!
+<form name="editform" action="/{Article.Title}/save" method="post" style="overflow: hidden">
+  <textarea rows="30" style="width: calc(100% - 1.5em); padding: 0.5em" resizable="false" name="textcontent">{Article.RawContent}</textarea><br>
+  <button class="btn btn-success" role="submit">Apply changes</button>
+</form>

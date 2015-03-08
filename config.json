@@ -1,8 +1,9 @@
 {
   "Title": "Wikka",
-  "Url": "localhost",
+  "Url": "http://localhost:3000/",
   "Articles": "articles/",
   "Templates": "templates/",
   "Host": ":3000",
-  "Frontpage": "Index"
+  "Frontpage": "Index",
+  "Editable": true
 }
