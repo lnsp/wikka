@@ -1,8 +1,8 @@
 {
   "Title": "Wikka",
   "Url": "localhost",
-  "Articles": "wiki-data/",
+  "Articles": "articles/",
   "Templates": "templates/",
   "Host": ":3000",
-  "Frontpage": "index"
+  "Frontpage": "Index"
 }
