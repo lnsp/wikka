@@ -3,5 +3,6 @@
   "Url": "localhost",
   "Articles": "wiki-data/",
   "Templates": "templates/",
-  "Host": ":3000"
+  "Host": ":3000",
+  "Frontpage": "index"
 }
