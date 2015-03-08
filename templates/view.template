@@ -1,0 +1,4 @@
+<h1>{Article.Title}</h1>
+<p><small>Last modified at {Article.ModifyDate}</small></p>
+<hr>
+{Article.Content}

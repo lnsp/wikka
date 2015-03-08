@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<html lang="en">
+{head.template}
+<body>
+{header.template}
+{content}
+{footer.template}
+</body>
+</html>
