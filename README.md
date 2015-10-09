@@ -23,4 +23,4 @@ Configuration of the server is done via the `config.json`. Here is an example:
 }
 
 ```
-The name of the `main.template`, `edit.template`, `view.template` and `error.template` are constant, they can't be changed. Every other template file can be changed though.
+The names of the `main.template`, `edit.template`, `view.template` and `error.template` templates are constant, they can't be changed. Every other template file can be changed though.
