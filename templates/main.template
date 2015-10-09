@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-{head.template}
+{:head.template}
 <body>
 <div class="container">
-{header.template}
+{:header.template}
 {content}
-{footer.template}
+{:footer.template}
 </div>
 </body>
 </html>

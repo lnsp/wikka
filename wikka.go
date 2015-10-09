@@ -90,10 +90,30 @@ func loadTemplates(path string) {
 				log.Fatal("Failed to read template file: " + path + file.Name())
 			}
 
-			text := string(content)
-			templates[file.Name()] = text
+			result := string(content)
+			templates[file.Name()] = result
 			fmt.Println("Loaded template " + file.Name())
 		}
+	}
+
+	// pre-render templates
+	for key, template := range templates {
+		result := template
+		changed := true
+
+		for changed {
+			oldResult := result
+			for key, value := range templates {
+				if key == template {
+					continue
+				}
+
+				result = strings.Replace(result, "{:" + key + "}", value, -1)
+			}
+			// check for changes
+			changed = oldResult != result
+		}
+		templates[key] = result
 	}
 }
 
@@ -109,30 +129,15 @@ func renderMarkdown(md string) string {
 func renderTemplate(template string, context map[string]string) string {
 	startTime := time.Now().Nanosecond()
 
-	result := templates[template]
-	changed := true
-
-	for changed {
-		oldResult := result
-		for key, value := range templates {
-			if key == template {
-				continue
-			}
-
-			result = strings.Replace(result, "{"+key+"}", value, -1)
-		}
-		// check for changes
-		changed = oldResult != result
-	}
-
+	tmp := templates[template]
 	for key, value := range context {
-		result = strings.Replace(result, "{"+key+"}", value, -1)
+		tmp = strings.Replace(tmp, "{"+key+"}", value, -1)
 	}
 
-	timeDifference := (time.Now().Nanosecond() - startTime) / 1000.0
-	fmt.Printf("Rendered template %s in %d milliseconds\n", template, timeDifference)
+	timeDifference := (time.Now().Nanosecond() - startTime)
+	fmt.Printf("Rendered template %s in %d nanoseconds\n", template, timeDifference)
 
-	return result
+	return tmp
 }
 
 func (art *Article) CreateContext() map[string]string {
@@ -166,7 +171,7 @@ func showFrontpage(res http.ResponseWriter, req *http.Request) {
 
 func viewArticle(res http.ResponseWriter, req *http.Request) {
 	articleName := strings.ToLower(req.URL.Query().Get(":article"))
-
+	fmt.Println("Article request")
 	context := make(map[string]string)
 	activeTemplate := ""
 
