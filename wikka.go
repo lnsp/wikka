@@ -32,10 +32,10 @@ type Article struct {
 }
 
 const (
-	view_template      = "view.template"
-	edit_template      = "edit.template"
-	error_template     = "error.template"
-	container_template = "main.template"
+	viewTemplate      = "view.template"
+	editTemplate      = "edit.template"
+	errorTemplate     = "error.template"
+	containerTemplate = "main.template"
 )
 
 var templates map[string]string
@@ -43,27 +43,27 @@ var articles map[string]Article
 var cfg *Configuration
 
 // load all articles from a specific path
-func load_articles(path string) {
+func loadArticles(path string) {
 	articles = make(map[string]Article)
-	info, err := ioutil.ReadDir(path)
+	entries, err := ioutil.ReadDir(path)
 
 	if err != nil {
 		log.Fatal("Failed to load articles: " + path)
 	}
 
-	for _, file := range info {
+	for _, file := range entries {
 		isTemplate := strings.HasSuffix(file.Name(), ".md")
 
 		if isTemplate {
-			content_bytes, err := ioutil.ReadFile(path + file.Name())
+			content, err := ioutil.ReadFile(path + file.Name())
 
 			if err != nil {
 				log.Fatal("Failed to read article: " + path + file.Name())
 			}
 
-			content := string(content_bytes)
+			text := string(content)
 			title := strings.Split(file.Name(), ".")[0]
-			article := Article{title, file.ModTime(), content}
+			article := Article{title, file.ModTime(), text}
 
 			articles[strings.ToLower(title)] = article
 			fmt.Println("Loaded article " + file.Name())
@@ -72,48 +72,48 @@ func load_articles(path string) {
 }
 
 // load all templates from a specific path
-func load_templates(path string) {
+func loadTemplates(path string) {
 	templates = make(map[string]string)
-	info, err := ioutil.ReadDir(path)
+	entries, err := ioutil.ReadDir(path)
 
 	if err != nil {
 		log.Fatal("Failed to load templates: " + path)
 	}
 
-	for _, file := range info {
+	for _, file := range entries {
 		isTemplate := strings.HasSuffix(file.Name(), ".template")
 
 		if isTemplate {
-			content_bytes, err := ioutil.ReadFile(path + file.Name())
+			content, err := ioutil.ReadFile(path + file.Name())
 
 			if err != nil {
 				log.Fatal("Failed to read template file: " + path + file.Name())
 			}
 
-			content := string(content_bytes)
-			templates[file.Name()] = content
+			text := string(content)
+			templates[file.Name()] = text
 			fmt.Println("Loaded template " + file.Name())
 		}
 	}
 }
 
 // render markdown and sanitize the output
-func render_markdown(md string) string {
-	md_bytes := []byte(md)
-	text_bytes := github_flavored_markdown.Markdown(md_bytes)
-	sanitized_bytes := bluemonday.UGCPolicy().SanitizeBytes(text_bytes)
-	return string(sanitized_bytes)
+func renderMarkdown(md string) string {
+	markdownBytes := []byte(md)
+	htmlBytes := github_flavored_markdown.Markdown(markdownBytes)
+	sanitizedBytes := bluemonday.UGCPolicy().SanitizeBytes(htmlBytes)
+	return string(sanitizedBytes)
 }
 
 // render the specific template (not-recursive)
-func render_template(template string, context map[string]string) string {
-	start_time := time.Now().Nanosecond()
+func renderTemplate(template string, context map[string]string) string {
+	startTime := time.Now().Nanosecond()
 
 	result := templates[template]
 	changed := true
 
 	for changed {
-		old_result := result
+		oldResult := result
 		for key, value := range templates {
 			if key == template {
 				continue
@@ -121,15 +121,16 @@ func render_template(template string, context map[string]string) string {
 
 			result = strings.Replace(result, "{"+key+"}", value, -1)
 		}
-		changed = old_result != result
+		// check for changes
+		changed = oldResult != result
 	}
 
 	for key, value := range context {
 		result = strings.Replace(result, "{"+key+"}", value, -1)
 	}
 
-	diff_time := time.Now().Nanosecond() - start_time
-	fmt.Printf("Needed %d nanoseconds to respond\n", diff_time)
+	timeDifference := (time.Now().Nanosecond() - startTime) / 1000.0
+	fmt.Printf("Rendered template %s in %d milliseconds\n", template, timeDifference)
 
 	return result
 }
@@ -139,13 +140,13 @@ func (art *Article) CreateContext() map[string]string {
 		"Wiki.Title":         cfg.Title,
 		"Wiki.Url":           cfg.Url,
 		"Article.Title":      art.Title,
-		"Article.Content":    render_markdown(art.Content),
+		"Article.Content":    renderMarkdown(art.Content),
 		"Article.RawContent": art.Content,
-		"Article.ModifyDate": format_date(art.ModifyDate),
+		"Article.ModifyDate": formatDate(art.ModifyDate),
 	}
 }
 
-func error_context(code int, name string, message string) map[string]string {
+func createErrorContent(code int, name string, message string) map[string]string {
 	return map[string]string{
 		"Wiki.Title":    cfg.Title,
 		"Wiki.Url":      cfg.Url,
@@ -155,47 +156,47 @@ func error_context(code int, name string, message string) map[string]string {
 	}
 }
 
-func format_date(date time.Time) string {
-	return date.Format("Mon Jan 2 15:04:05")
+func formatDate(date time.Time) string {
+	return date.Format("Monday, 2. January 15:04")
 }
 
-func handle_index(res http.ResponseWriter, req *http.Request) {
+func showFrontpage(res http.ResponseWriter, req *http.Request) {
 	http.Redirect(res, req, "/"+cfg.Frontpage, 301)
 }
 
-func handle_view(res http.ResponseWriter, req *http.Request) {
-	article_name := strings.ToLower(req.URL.Query().Get(":article"))
+func viewArticle(res http.ResponseWriter, req *http.Request) {
+	articleName := strings.ToLower(req.URL.Query().Get(":article"))
 
 	context := make(map[string]string)
-	active_template := ""
+	activeTemplate := ""
 
-	if article, exists := articles[article_name]; exists {
+	if article, exists := articles[articleName]; exists {
 		context = article.CreateContext()
-		active_template = view_template
+		activeTemplate = viewTemplate
 	} else {
-		context = error_context(200, "Not found", article_name + " was not found. You may want to <a href=\"" + article_name + "/edit\">create this page!</a>")
-		active_template = error_template
+		context = createErrorContent(404, "Not found", articleName + " was not found. You may want to <a href=\"" +articleName + "/edit\">create this page!</a>")
+		activeTemplate = errorTemplate
 	}
 
-	context["content"] = render_template(active_template, context)
-	fmt.Fprint(res, render_template(container_template, context))
+	context["content"] = renderTemplate(activeTemplate, context)
+	fmt.Fprint(res, renderTemplate(containerTemplate, context))
 }
 
-func handle_edit(res http.ResponseWriter, req *http.Request) {
+func editArticle(res http.ResponseWriter, req *http.Request) {
 	article_name := strings.ToLower(req.URL.Query().Get(":article"))
 
 	context := make(map[string]string)
 	if article, exists := articles[article_name]; exists {
 		context = article.CreateContext()
 	} else {
-		context = error_context(200, article_name, "Create the page")
+		context = createErrorContent(200, article_name, "Create the page")
 		context["Article.RawContent"] = ""
 	}
-	context["content"] = render_template(edit_template, context)
-	fmt.Fprint(res, render_template(container_template, context))
+	context["content"] = renderTemplate(editTemplate, context)
+	fmt.Fprint(res, renderTemplate(containerTemplate, context))
 }
 
-func handle_search(res http.ResponseWriter, req *http.Request) {
+func searchArticle(res http.ResponseWriter, req *http.Request) {
 	fmt.Println("NONONO")
 	if que, ok := req.URL.Query()["article"]; ok {
 		if art, exists := articles[strings.ToLower(que[0])]; exists {
@@ -204,13 +205,13 @@ func handle_search(res http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	context := error_context(404, "Page not found", "Sorry, the page was not found")
+	context := createErrorContent(404, "Page not found", "Sorry, the page was not found")
 	res.WriteHeader(404)
-	context["content"] = render_template(error_template, context)
-	fmt.Fprint(res, render_template(container_template, context))
+	context["content"] = renderTemplate(errorTemplate, context)
+	fmt.Fprint(res, renderTemplate(containerTemplate, context))
 }
 
-func handle_save(res http.ResponseWriter, req *http.Request) {
+func saveArticle(res http.ResponseWriter, req *http.Request) {
 	article_name := strings.ToLower(req.URL.Query().Get(":article"))
 	input_text := req.FormValue("textcontent")
 
@@ -237,13 +238,13 @@ func handle_save(res http.ResponseWriter, req *http.Request) {
 			}
 		}
 	}
-	context := error_context(500, "Internal server error", "There happened something bad on the wiki server")
+	context := createErrorContent(500, "Internal server error", "There happened something bad on the wiki server")
 	res.WriteHeader(500)
-	context["content"] = render_template(error_template, context)
-	fmt.Fprint(res, render_template(container_template, context))
+	context["content"] = renderTemplate(errorTemplate, context)
+	fmt.Fprint(res, renderTemplate(containerTemplate, context))
 }
 
-func load_config(path string) {
+func loadConfiguration(path string) {
 	file, err := os.Open(path)
 	if err != nil {
 		log.Fatal("Couldn't find configuration file: " + path)
@@ -259,17 +260,19 @@ func load_config(path string) {
 func main() {
 	start_time := time.Now()
 
-	load_config("config.json")
-	load_articles(cfg.Articles)
-	load_templates(cfg.Templates)
+	loadConfiguration("config.json")
+	loadArticles(cfg.Articles)
+	loadTemplates(cfg.Templates)
 
 	mux := pat.New()
-	mux.Get("/", http.HandlerFunc(handle_index))
-	mux.Get("/search", http.HandlerFunc(handle_search))
-	mux.Get("/:article", http.HandlerFunc(handle_view))
+	mux.Get("/", http.HandlerFunc(showFrontpage))
+	mux.Get("/search", http.HandlerFunc(searchArticle))
+	mux.Get("/:article", http.HandlerFunc(viewArticle))
+
+	// create edit paths
 	if cfg.Editable {
-		mux.Get("/:article/edit", http.HandlerFunc(handle_edit))
-		mux.Post("/:article/save", http.HandlerFunc(handle_save))
+		mux.Get("/:article/edit", http.HandlerFunc(editArticle))
+		mux.Post("/:article/save", http.HandlerFunc(saveArticle))
 	}
 
 	http.Handle("/", mux)
