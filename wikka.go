@@ -210,23 +210,6 @@ func editArticle(res http.ResponseWriter, req *http.Request) {
 	fmt.Fprint(res, renderTemplate(containerTemplate, context))
 }
 
-/*
-func searchArticle(res http.ResponseWriter, req *http.Request) {
-	fmt.Println("NONONO")
-	if que, ok := req.URL.Query()["article"]; ok {
-		if art, exists := articles[strings.ToLower(que[0])]; exists {
-			http.Redirect(res, req, "/"+art.Title, 301)
-			return
-		}
-	}
-
-	context := CreateErrorContext(404, "Sorry, the page was not found")
-	res.WriteHeader(404)
-	context["content"] = renderTemplate(errorTemplate, context)
-	fmt.Fprint(res, renderTemplate(containerTemplate, context))
-}
-*/
-
 func saveArticle(res http.ResponseWriter, req *http.Request) {
 	article_name := strings.ToLower(req.URL.Query().Get(":article"))
 	input_text := req.FormValue("textcontent")
@@ -282,7 +265,6 @@ func main() {
 
 	mux := pat.New()
 	mux.Get("/", http.HandlerFunc(showFrontpage))
-	//mux.Get("/search", http.HandlerFunc(searchArticle))
 	mux.Get("/:article", http.HandlerFunc(viewArticle))
 
 	// create edit paths
