@@ -4,7 +4,7 @@
 <body>
 <div class="container">
 {:header.template}
-{content}
+{:*}
 {:footer.template}
 </div>
 </body>

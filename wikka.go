@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/bmizerany/pat"
-	"github.com/microcosm-cc/bluemonday"
-	"github.com/shurcooL/github_flavored_markdown"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -97,47 +95,11 @@ func loadTemplates(path string) {
 	}
 
 	// pre-render templates
-	for key, template := range templates {
-		result := template
-		changed := true
-
-		for changed {
-			oldResult := result
-			for key, value := range templates {
-				if key == template {
-					continue
-				}
-
-				result = strings.Replace(result, "{:" + key + "}", value, -1)
-			}
-			// check for changes
-			changed = oldResult != result
-		}
-		templates[key] = result
-	}
-}
-
-// render markdown and sanitize the output
-func renderMarkdown(md string) string {
-	markdownBytes := []byte(md)
-	htmlBytes := github_flavored_markdown.Markdown(markdownBytes)
-	sanitizedBytes := bluemonday.UGCPolicy().SanitizeBytes(htmlBytes)
-	return string(sanitizedBytes)
-}
-
-// render the specific template (not-recursive)
-func renderTemplate(template string, context map[string]string) string {
-	startTime := time.Now().Nanosecond()
-
-	tmp := templates[template]
-	for key, value := range context {
-		tmp = strings.Replace(tmp, "{"+key+"}", value, -1)
+	for key, _ := range templates {
+		templates[key] = RenderTemplate(key)
 	}
 
-	timeDifference := (time.Now().Nanosecond() - startTime)
-	fmt.Printf("Rendered template %s in %d nanoseconds\n", template, timeDifference)
-
-	return tmp
+	CreateContainerTemplate(containerTemplate)
 }
 
 // Creates a new article render context
@@ -146,7 +108,7 @@ func (art *Article) CreateContext() map[string]string {
 		"Wiki.Title":         cfg.Title,
 		"Wiki.Url":           cfg.Url,
 		"Article.Title":      art.Title,
-		"Article.Content":    renderMarkdown(art.Content),
+		"Article.Content":    RenderMarkdown(art.Content),
 		"Article.RawContent": art.Content,
 		"Article.ModifyDate": formatDate(art.ModifyDate),
 	}
@@ -193,8 +155,7 @@ func viewArticle(res http.ResponseWriter, req *http.Request) {
 		activeTemplate = errorTemplate
 	}
 
-	context["content"] = renderTemplate(activeTemplate, context)
-	fmt.Fprint(res, renderTemplate(containerTemplate, context))
+	fmt.Fprint(res, RenderContainer(activeTemplate, context))
 }
 
 func editArticle(res http.ResponseWriter, req *http.Request) {
@@ -204,10 +165,9 @@ func editArticle(res http.ResponseWriter, req *http.Request) {
 	if article, exists := articles[article_name]; exists {
 		context = article.CreateContext()
 	} else {
-		context = CreateCustomContext("Create the page", "")
+		context = CreateCustomContext(article_name, "")
 	}
-	context["content"] = renderTemplate(editTemplate, context)
-	fmt.Fprint(res, renderTemplate(containerTemplate, context))
+	fmt.Fprint(res, RenderContainer(editTemplate, context))
 }
 
 func saveArticle(res http.ResponseWriter, req *http.Request) {
@@ -239,14 +199,13 @@ func saveArticle(res http.ResponseWriter, req *http.Request) {
 	}
 	context := CreateErrorContext(500, "There happened something bad on the wiki server")
 	res.WriteHeader(500)
-	context["content"] = renderTemplate(errorTemplate, context)
-	fmt.Fprint(res, renderTemplate(containerTemplate, context))
+	fmt.Fprint(res, RenderContainer(errorTemplate, context))
 }
 
 func loadConfiguration(path string) {
 	file, err := os.Open(path)
 	if err != nil {
-		log.Fatal("Couldn't find configuration file: " + path)
+		panic("Couldn't find configuration file: " + path)
 	}
 	decoder := json.NewDecoder(file)
 	cfg = new(Configuration)
