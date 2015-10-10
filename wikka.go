@@ -140,6 +140,7 @@ func renderTemplate(template string, context map[string]string) string {
 	return tmp
 }
 
+// Creates a new article render context
 func (art *Article) CreateContext() map[string]string {
 	return map[string]string{
 		"Wiki.Title":         cfg.Title,
@@ -151,13 +152,22 @@ func (art *Article) CreateContext() map[string]string {
 	}
 }
 
-func createErrorContent(code int, name string, message string) map[string]string {
+func CreateErrorContext(code int, message string) map[string]string {
 	return map[string]string{
 		"Wiki.Title":    cfg.Title,
 		"Wiki.Url":      cfg.Url,
-		"Article.Title": name,
+		"Article.Title": fmt.Sprintf("Error %d", code),
 		"Error.Code":    fmt.Sprintf("%d", code),
 		"Error.Message": message,
+	}
+}
+
+func CreateCustomContext(title string, content string) map[string]string {
+	return map[string]string{
+		"Wiki.Title":    cfg.Title,
+		"Wiki.Url":      cfg.Url,
+		"Article.Title": title,
+		"Article.RawContent": content,
 	}
 }
 
@@ -179,7 +189,7 @@ func viewArticle(res http.ResponseWriter, req *http.Request) {
 		context = article.CreateContext()
 		activeTemplate = viewTemplate
 	} else {
-		context = createErrorContent(404, "Not found", articleName + " was not found. You may want to <a href=\"" +articleName + "/edit\">create this page!</a>")
+		context = CreateErrorContext(404, articleName + " was not found. You may want to <a href=\"" +articleName + "/edit\">create this page!</a>")
 		activeTemplate = errorTemplate
 	}
 
@@ -194,13 +204,13 @@ func editArticle(res http.ResponseWriter, req *http.Request) {
 	if article, exists := articles[article_name]; exists {
 		context = article.CreateContext()
 	} else {
-		context = createErrorContent(200, article_name, "Create the page")
-		context["Article.RawContent"] = ""
+		context = CreateCustomContext("Create the page", "")
 	}
 	context["content"] = renderTemplate(editTemplate, context)
 	fmt.Fprint(res, renderTemplate(containerTemplate, context))
 }
 
+/*
 func searchArticle(res http.ResponseWriter, req *http.Request) {
 	fmt.Println("NONONO")
 	if que, ok := req.URL.Query()["article"]; ok {
@@ -210,11 +220,12 @@ func searchArticle(res http.ResponseWriter, req *http.Request) {
 		}
 	}
 
-	context := createErrorContent(404, "Page not found", "Sorry, the page was not found")
+	context := CreateErrorContext(404, "Sorry, the page was not found")
 	res.WriteHeader(404)
 	context["content"] = renderTemplate(errorTemplate, context)
 	fmt.Fprint(res, renderTemplate(containerTemplate, context))
 }
+*/
 
 func saveArticle(res http.ResponseWriter, req *http.Request) {
 	article_name := strings.ToLower(req.URL.Query().Get(":article"))
@@ -243,7 +254,7 @@ func saveArticle(res http.ResponseWriter, req *http.Request) {
 			}
 		}
 	}
-	context := createErrorContent(500, "Internal server error", "There happened something bad on the wiki server")
+	context := CreateErrorContext(500, "There happened something bad on the wiki server")
 	res.WriteHeader(500)
 	context["content"] = renderTemplate(errorTemplate, context)
 	fmt.Fprint(res, renderTemplate(containerTemplate, context))
@@ -271,7 +282,7 @@ func main() {
 
 	mux := pat.New()
 	mux.Get("/", http.HandlerFunc(showFrontpage))
-	mux.Get("/search", http.HandlerFunc(searchArticle))
+	//mux.Get("/search", http.HandlerFunc(searchArticle))
 	mux.Get("/:article", http.HandlerFunc(viewArticle))
 
 	// create edit paths
