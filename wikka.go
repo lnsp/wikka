@@ -1,26 +1,25 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/bmizerany/pat"
-	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
+	"io/ioutil"
 	"regexp"
 	"strings"
 	"time"
 )
 
 type Configuration struct {
-	Title     string
-	Url       string
-	Articles  string
-	Templates string
-	Host      string
-	Frontpage string
-	Editable  bool
+	Title     			string
+	Url       			string
+	Articles  			string
+	Templates 			string
+	Host      			string
+	Frontpage 			string
+	Editable  			bool
+	MinimumTextLength 	int
 }
 
 type Article struct {
@@ -30,77 +29,15 @@ type Article struct {
 }
 
 const (
-	viewTemplate      = "view.template"
-	editTemplate      = "edit.template"
-	errorTemplate     = "error.template"
-	containerTemplate = "main.template"
+	VIEW_TEMPLATE      = "view.template"
+	EDIT_TEMPLATE      = "edit.template"
+	ERROR_TEMPLATE     = "error.template"
+	CONTAINER_TEMPLATE = "main.template"
 )
 
 var templates map[string]string
 var articles map[string]Article
 var cfg *Configuration
-
-// load all articles from a specific path
-func loadArticles(path string) {
-	articles = make(map[string]Article)
-	entries, err := ioutil.ReadDir(path)
-
-	if err != nil {
-		log.Fatal("Failed to load articles: " + path)
-	}
-
-	for _, file := range entries {
-		isTemplate := strings.HasSuffix(file.Name(), ".md")
-
-		if isTemplate {
-			content, err := ioutil.ReadFile(path + file.Name())
-
-			if err != nil {
-				log.Fatal("Failed to read article: " + path + file.Name())
-			}
-
-			text := string(content)
-			title := strings.Split(file.Name(), ".")[0]
-			article := Article{title, file.ModTime(), text}
-
-			articles[strings.ToLower(title)] = article
-			fmt.Println("Loaded article " + file.Name())
-		}
-	}
-}
-
-// load all templates from a specific path
-func loadTemplates(path string) {
-	templates = make(map[string]string)
-	entries, err := ioutil.ReadDir(path)
-
-	if err != nil {
-		log.Fatal("Failed to load templates: " + path)
-	}
-
-	for _, file := range entries {
-		isTemplate := strings.HasSuffix(file.Name(), ".template")
-
-		if isTemplate {
-			content, err := ioutil.ReadFile(path + file.Name())
-
-			if err != nil {
-				log.Fatal("Failed to read template file: " + path + file.Name())
-			}
-
-			result := string(content)
-			templates[file.Name()] = result
-			fmt.Println("Loaded template " + file.Name())
-		}
-	}
-
-	// pre-render templates
-	for key, _ := range templates {
-		templates[key] = RenderTemplate(key)
-	}
-
-	CreateContainerTemplate(containerTemplate)
-}
 
 // Creates a new article render context
 func (art *Article) CreateContext() map[string]string {
@@ -143,84 +80,83 @@ func showFrontpage(res http.ResponseWriter, req *http.Request) {
 
 func viewArticle(res http.ResponseWriter, req *http.Request) {
 	articleName := strings.ToLower(req.URL.Query().Get(":article"))
-	fmt.Println("Article request")
 	context := make(map[string]string)
 	activeTemplate := ""
 
 	if article, exists := articles[articleName]; exists {
 		context = article.CreateContext()
-		activeTemplate = viewTemplate
+		activeTemplate = VIEW_TEMPLATE
 	} else {
 		context = CreateErrorContext(404, articleName + " was not found. You may want to <a href=\"" +articleName + "/edit\">create this page!</a>")
-		activeTemplate = errorTemplate
+		activeTemplate = ERROR_TEMPLATE
 	}
 
 	fmt.Fprint(res, RenderContainer(activeTemplate, context))
 }
 
 func editArticle(res http.ResponseWriter, req *http.Request) {
-	article_name := strings.ToLower(req.URL.Query().Get(":article"))
+	articleName := strings.ToLower(req.URL.Query().Get(":article"))
 
 	context := make(map[string]string)
-	if article, exists := articles[article_name]; exists {
+	if article, exists := articles[articleName]; exists {
 		context = article.CreateContext()
 	} else {
-		context = CreateCustomContext(article_name, "")
+		context = CreateCustomContext(articleName, "")
 	}
-	fmt.Fprint(res, RenderContainer(editTemplate, context))
+	fmt.Fprint(res, RenderContainer(EDIT_TEMPLATE, context))
 }
 
 func saveArticle(res http.ResponseWriter, req *http.Request) {
-	article_name := strings.ToLower(req.URL.Query().Get(":article"))
-	input_text := req.FormValue("textcontent")
+	articleName := strings.ToLower(req.URL.Query().Get(":article"))
+	savedText := req.FormValue("textcontent")
 
-	if len(input_text) > 0 {
-		if article, ok := articles[article_name]; ok {
-			err := ioutil.WriteFile(cfg.Articles+article.Title+".md", []byte(input_text), 0644)
-			article.Content = input_text
+	errorMessage := ""
+
+	if len(savedText) >= cfg.MinimumTextLength {
+		if article, ok := articles[articleName]; ok {
+			err := ioutil.WriteFile(cfg.Articles+article.Title+".md", []byte(savedText), 0644)
+			article.Content = savedText
 			article.ModifyDate = time.Now()
 			if err == nil {
-				articles[article_name] = article
+				articles[articleName] = article
 				http.Redirect(res, req, "/"+article.Title, 301)
 				return
+			} else {
+				log.Fatal(err)
+				errorMessage = err.Error()
 			}
 		} else {
-			valid_name, _ := regexp.MatchString("([A-Za-z\\-]{1,64})", article_name)
-			if valid_name {
-				active_article := Article{article_name, time.Now(), input_text}
-				err := ioutil.WriteFile(cfg.Articles+active_article.Title+".md", []byte(input_text), 0644)
+			validName, _ := regexp.MatchString("([A-Za-z\\-]{1,64})", articleName)
+			if validName {
+				activeArticle := Article{articleName, time.Now(), savedText}
+				err := ioutil.WriteFile(cfg.Articles+activeArticle.Title+".md", []byte(savedText), 0644)
 				if err == nil {
-					articles[article_name] = active_article
-					http.Redirect(res, req, "/"+active_article.Title, 301)
+					articles[articleName] = activeArticle
+					http.Redirect(res, req, "/"+activeArticle.Title, 301)
 					return
+				} else {
+					log.Fatal(err)
+					errorMessage = err.Error()
 				}
+			} else {
+				// name not valid
+				errorMessage = "The article's name is not valid."
 			}
 		}
+	} else {
+		errorMessage = fmt.Sprintf("The text content of the entry had a length of less than %d characters.", cfg.MinimumTextLength)
 	}
-	context := CreateErrorContext(500, "There happened something bad on the wiki server")
+	context := CreateErrorContext(500, errorMessage)
 	res.WriteHeader(500)
-	fmt.Fprint(res, RenderContainer(errorTemplate, context))
-}
-
-func loadConfiguration(path string) {
-	file, err := os.Open(path)
-	if err != nil {
-		panic("Couldn't find configuration file: " + path)
-	}
-	decoder := json.NewDecoder(file)
-	cfg = new(Configuration)
-	err = decoder.Decode(cfg)
-	if err != nil {
-		log.Fatal(err)
-	}
+	fmt.Fprint(res, RenderContainer(ERROR_TEMPLATE, context))
 }
 
 func main() {
 	start_time := time.Now()
 
-	loadConfiguration("config.json")
-	loadArticles(cfg.Articles)
-	loadTemplates(cfg.Templates)
+	LoadConfiguration("config.json")
+	LoadArticles(cfg.Articles)
+	LoadTemplates(cfg.Templates)
 
 	mux := pat.New()
 	mux.Get("/", http.HandlerFunc(showFrontpage))
@@ -234,8 +170,8 @@ func main() {
 
 	http.Handle("/", mux)
 
-	diff_time := float32(time.Now().Nanosecond()-start_time.Nanosecond()) / 1000000.0
-	fmt.Printf("Server up and running after %f milliseconds\n", diff_time)
+	diff_time := float64(time.Now().Nanosecond()-start_time.Nanosecond()) / 1000000.0
+	log.Printf("Server up and running after %.3f milliseconds\n", diff_time)
 
 	// Run webserver
 	log.Fatal(http.ListenAndServe(cfg.Host, nil))

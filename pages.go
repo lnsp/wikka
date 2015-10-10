@@ -19,7 +19,7 @@ func RenderPage(template string, context map[string]string) string {
 // Render Page to Container
 func RenderContainer(template string, context map[string]string) string {
 	context[":*"] = RenderPage(template, context)
-	return RenderPage(containerTemplate, context)
+	return RenderPage(CONTAINER_TEMPLATE, context)
 }
 
 // Renders a template (without context)
