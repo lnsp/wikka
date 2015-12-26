@@ -7,3 +7,6 @@ install:
   - go get github.com/bmizerany/pat
   - go get github.com/microcosm-cc/bluemonday
   - go get github.com/shurcooL/github_flavored_markdown
+
+notifications:
+  email: false
