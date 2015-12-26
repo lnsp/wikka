@@ -1,8 +1,0 @@
-REPLACEMENTS / TEMPLATE VARIABLES
-
-Wiki.Title
-Wiki.Url
-
-Article.Title
-Article.ModifyDate
-Article.Content
