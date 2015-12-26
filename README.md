@@ -1,4 +1,4 @@
-# wikka [![Build Status](https://travis-ci.org/Mooxmirror/wikka.svg)](https://travis-ci.org/Mooxmirror/wikka)
+# wikka [![Build Status](https://travis-ci.org/mooxmirror/wikka.svg)](https://travis-ci.org/mooxmirror/wikka)
 
 Wikka is a wiki environment written in Go focused on speed and simplicity.
 ## Building
